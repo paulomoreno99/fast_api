@@ -8,10 +8,11 @@ from sqlalchemy import select
 from zoneinfo import ZoneInfo
 from pwdlib import PasswordHash
 from jwt import DecodeError, decode, encode
+from jwt.exceptions import PyJWTError
 
 from fast_api.database import get_session
 from fast_api.models import User
-from fast_api.schemas import Token
+from fast_api.schemas import Token, TokenData
 
 pwd_context = PasswordHash.recommended()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -31,8 +32,10 @@ def verify_password(plain_password: str, hashed_password: str):
 def create_access_token(data: dict):
     to_encode = data.copy()
 
-    # Adiciona um tempo de 30 minutos para expiração do token
-    expire = datetime.now(tz=ZoneInfo('UTC') + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    #expire = datetime.now(tz=ZoneInfo('UTC') + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({'exp': expire})
     encode_jwt = encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encode_jwt
