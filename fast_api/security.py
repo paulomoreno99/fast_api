@@ -1,44 +1,43 @@
 from datetime import datetime, timedelta
 from http import HTTPStatus
 
-from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import select
-from zoneinfo import ZoneInfo
-from pwdlib import PasswordHash
+from fastapi.security import OAuth2PasswordBearer
 from jwt import DecodeError, decode, encode
-from jwt.exceptions import PyJWTError
+from pwdlib import PasswordHash
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from zoneinfo import ZoneInfo
 
 from fast_api.database import get_session
 from fast_api.models import User
-from fast_api.schemas import Token, TokenData
+from fast_api.schemas import TokenData
+from fast_api.settings import Settings
 
 pwd_context = PasswordHash.recommended()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-SECRET_KEY = 'your-secret-key'
-ALGORITHM = 'HS256'
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
+settings = Settings()
 
 
-def get_password_hash(password= str):
+def get_password_hash(password=str):
     return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
 
+
 def create_access_token(data: dict):
     to_encode = data.copy()
 
-    expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    #expire = datetime.now(tz=ZoneInfo('UTC') + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    # expire = datetime.now(tz=ZoneInfo('UTC') + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({'exp': expire})
-    encode_jwt = encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encode_jwt = encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encode_jwt
+
+
 def get_current_user(
     session: Session = Depends(get_session),
     token: str = Depends(oauth2_scheme),
@@ -50,7 +49,7 @@ def get_current_user(
     )
 
     try:
-        payload = decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         username: str = payload.get('sub')
         if not username:
             raise credentials_exception
@@ -58,12 +57,9 @@ def get_current_user(
     except DecodeError:
         raise credentials_exception
 
-    user = session.scalar(
-        select(User).where(User.email == token_data.username)
-    )
+    user = session.scalar(select(User).where(User.email == token_data.username))
 
     if not user:
         raise credentials_exception
 
     return user
-
