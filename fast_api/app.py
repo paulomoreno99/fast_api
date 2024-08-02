@@ -13,4 +13,4 @@ app.include_router(auth.router)
 
 @app.get('/', status_code=HTTPStatus.OK, response_model=Message)
 def read_root():
-    return {'message': 'Paulo Moreno Python!!'}
+    return {'message': 'Gabu JavaScript!!'}
